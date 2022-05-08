@@ -564,6 +564,10 @@ public:
 		U = U * 2.0f * M_PI, V = V * 2 - 1.0f;
 		X = Cos(U); Y = Sin(U); Z = V;
 	}
+
+	void Animate(float tstart, float tend) {
+		
+	}
 };
 
 //---------------------------
@@ -689,7 +693,10 @@ public:
 		geometry->Draw();
 	}
 
-	virtual void Animate(float tstart, float tend) { rotationAngle = 0.8f * tend; }
+	virtual void Animate(float tstart, float tend) {
+		//rotationAxis = vec3(1,0,0);
+		rotationAngle = sin(0.8f * tend)/2 + M_PI/2; 
+	}
 };
 
 //---------------------------
@@ -755,7 +762,7 @@ public:
 		objects.push_back(sphereObject1);
 
 		Object* cylinderObject2 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject2->translation = vec3(0, 0.5, 0);
+		cylinderObject2->translation = vec3(0, 0.75, 0);
 		cylinderObject2->scale = vec3(0.1, 0.1, 0.5);
 		cylinderObject2->rotationAxis = vec3(1, 0, 0);
 		cylinderObject2->rotationAngle = M_PI / 2;
@@ -782,23 +789,25 @@ public:
 		paraboloidObject->translation = vec3(0.7, 2, 0);
 		paraboloidObject->scale = vec3(0.5, 0.5, 0.5);
 		paraboloidObject->rotationAxis = vec3(0, 1, 0);
-		paraboloidObject->rotationAngle = -M_PI / 2;
+		paraboloidObject->rotationAngle = M_PI;
 		objects.push_back(paraboloidObject);
 
 		// Camera
-		camera.wEye = vec3(0, 2, 4);
+		camera.wEye = vec3(0, 2, 4.5);
 		camera.wLookat = vec3(0, 0, 0);
 		camera.wVup = vec3(0, 1, 0);
 
 		// Lights
 		lights.resize(3);
-		lights[0].wLightPos = vec4(0.7, 1, 0, 1);	// ideal point -> directional light source
+		lights[0].wLightPos = vec4(0, 2, 0.35, 1);	// ideal point -> directional light source
 		lights[0].La = vec3(0.0001f, 0.0001f, 0.0001f);
 		lights[0].Le = vec3(1, 1, 1);
 
 		lights[1].wLightPos = vec4(8, 10, 10, 1);	// ideal point -> directional light source
 		lights[1].La = vec3(0.01f, 0.01f, 0.01f);
 		lights[1].Le = vec3(1, 1, 1);
+
+		vec3 obj4trans = objects[4]->translation;
 	}
 
 	void Render() {
@@ -813,6 +822,16 @@ public:
 	void Animate(float tstart, float tend) {
 		camera.Animate(0.025);
 		//for (Object* obj : objects) obj->Animate(tstart, tend);
+		objects[4]->Animate(tstart, tend);
+		float y = length(objects[4]->translation * 2);
+		float alpha = objects[4]->rotationAngle;
+
+		objects[4]->translation =  vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
+		objects[5]->translation = vec3(0, y * sin(alpha), -y * cos(alpha)) - objects[4]->translation/5;
+		objects[6]->translation = objects[5]->translation + vec3(0,0.5,0);
+		objects[7]->translation = objects[5]->translation + vec3(0, 0.5, 0) + vec3(0, 0.5, 0);
+		objects[8]->translation = objects[5]->translation + vec3(0, 0.5, 0) + vec3(0, 0.5, 0) + vec3(0, 0, 0.7);
+		lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
 	}
 };
 
