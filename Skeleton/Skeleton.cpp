@@ -18,8 +18,8 @@
 //
 // NYILATKOZAT
 // ---------------------------------------------------------------------------------------------
-// Nev    : 
-// Neptun : 
+// Nev    : Szaraz Daniel
+// Neptun : GT5X34
 // ---------------------------------------------------------------------------------------------
 // ezennel kijelentem, hogy a feladatot magam keszitettem, es ha barmilyen segitseget igenybe vettem vagy
 // mas szellemi termeket felhasznaltam, akkor a forrast es az atvett reszt kommentekben egyertelmuen jeloltem.
@@ -571,94 +571,6 @@ public:
 };
 
 //---------------------------
-class Tractricoid : public ParamSurface {
-	//---------------------------
-public:
-	Tractricoid() { create(); }
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		const float height = 3.0f;
-		U = U * height, V = V * 2 * M_PI;
-		X = Cos(V) / Cosh(U); Y = Sin(V) / Cosh(U); Z = U - Tanh(U);
-	}
-};
-
-
-//---------------------------
-class Torus : public ParamSurface {
-	//---------------------------
-public:
-	Torus() { create(); }
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		const float R = 1, r = 0.5f;
-		U = U * 2.0f * M_PI, V = V * 2.0f * M_PI;
-		Dnum2 D = Cos(U) * r + R;
-		X = D * Cos(V); Y = D * Sin(V); Z = Sin(U) * r;
-	}
-};
-
-//---------------------------
-class Mobius : public ParamSurface {
-	//---------------------------
-public:
-	Mobius() { create(); }
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		const float R = 1, width = 0.5f;
-		U = U * M_PI, V = (V - 0.5f) * width;
-		X = (Cos(U) * V + R) * Cos(U * 2);
-		Y = (Cos(U) * V + R) * Sin(U * 2);
-		Z = Sin(U) * V;
-	}
-};
-
-//---------------------------
-class Klein : public ParamSurface {
-	//---------------------------
-	const float size = 1.5f;
-public:
-	Klein() { create(); }
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		U = U * M_PI * 2, V = V * M_PI * 2;
-		Dnum2 a = Cos(U) * (Sin(U) + 1) * 0.3f;
-		Dnum2 b = Sin(U) * 0.8f;
-		Dnum2 c = (Cos(U) * (-0.1f) + 0.2f);
-		X = a + c * ((U.f > M_PI) ? Cos(V + M_PI) : Cos(U) * Cos(V));
-		Y = b + ((U.f > M_PI) ? 0 : c * Sin(U) * Cos(V));
-		Z = c * Sin(V);
-	}
-};
-
-//---------------------------
-class Boy : public ParamSurface {
-	//---------------------------
-public:
-	Boy() { create(); }
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		U = (U - 0.5f) * M_PI, V = V * M_PI;
-		float r2 = sqrt(2.0f);
-		Dnum2 denom = (Sin(U * 3) * Sin(V * 2) * (-3 / r2) + 3) * 1.2f;
-		Dnum2 CosV2 = Cos(V) * Cos(V);
-		X = (Cos(U * 2) * CosV2 * r2 + Cos(U) * Sin(V * 2)) / denom;
-		Y = (Sin(U * 2) * CosV2 * r2 - Sin(U) * Sin(V * 2)) / denom;
-		Z = (CosV2 * 3) / denom;
-	}
-};
-
-//---------------------------
-class Dini : public ParamSurface {
-	//---------------------------
-	Dnum2 a = 1.0f, b = 0.15f;
-public:
-	Dini() { create(); }
-
-	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		U = U * 4 * M_PI, V = V * (1 - 0.1f) + 0.1f;
-		X = a * Cos(U) * Sin(V);
-		Y = a * Sin(U) * Sin(V);
-		Z = a * (Cos(V) + Log(Tan(V / 2))) + b * U + 3;
-	}
-};
-
-//---------------------------
 struct Object {
 	//---------------------------
 	Shader* shader;
@@ -694,7 +606,6 @@ public:
 	}
 
 	virtual void Animate(float tstart, float tend) {
-		//rotationAxis = vec3(1,0,0);
 		rotationAngle = sin(0.8f * tend)/2 + M_PI/2; 
 	}
 };
@@ -740,29 +651,29 @@ public:
 
 		// Create objects by setting up their vertex data on the GPU		
 		Object* planeObject = new Object(phongShader, material0, blueTexture, plane);
-		planeObject->translation = vec3(-25, 0, -25);
+		planeObject->translation = vec3(-25, -0.2, -25);
 		planeObject->scale = vec3(50, 1, 50);
 		objects.push_back(planeObject);
 
 		Object* cylinderObject1 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject1->translation = vec3(0, 0.1, 0);
+		cylinderObject1->translation = vec3(0, -0.1, 0);
 		cylinderObject1->scale = vec3(0.7, 0.7, 0.1);
 		cylinderObject1->rotationAxis = vec3(1, 0, 0);
 		cylinderObject1->rotationAngle = M_PI / 2;
 		objects.push_back(cylinderObject1);
 
 		Object* circleObject = new Object(phongShader, material0, yellowTexture, circle);
-		circleObject->translation = vec3(0, 0.2, 0);
+		circleObject->translation = vec3(0, 0, 0);
 		circleObject->scale = vec3(0.7, 1, 0.7);
 		objects.push_back(circleObject);
 
 		Object* sphereObject1 = new Object(phongShader, material0, yellowTexture, sphere);
-		sphereObject1->translation = vec3(0, 0.2, 0);
+		sphereObject1->translation = vec3(0, 0, 0);
 		sphereObject1->scale = vec3(0.2f, 0.2f, 0.2f);
 		objects.push_back(sphereObject1);
 
 		Object* cylinderObject2 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject2->translation = vec3(0, 0.75, 0);
+		cylinderObject2->translation = vec3(0, 0.5, 0);
 		cylinderObject2->scale = vec3(0.1, 0.1, 0.5);
 		cylinderObject2->rotationAxis = vec3(1, 0, 0);
 		cylinderObject2->rotationAngle = M_PI / 2;
@@ -786,10 +697,10 @@ public:
 		objects.push_back(sphereObject3);
 
 		Object* paraboloidObject = new Object(phongShader, material0, yellowTexture, paraboloid);
-		paraboloidObject->translation = vec3(0.7, 2, 0);
+		paraboloidObject->translation = vec3(0.69, 1.8, 0);
 		paraboloidObject->scale = vec3(0.5, 0.5, 0.5);
 		paraboloidObject->rotationAxis = vec3(0, 1, 0);
-		paraboloidObject->rotationAngle = M_PI;
+		paraboloidObject->rotationAngle = -M_PI/2;
 		objects.push_back(paraboloidObject);
 
 		// Camera
@@ -799,15 +710,13 @@ public:
 
 		// Lights
 		lights.resize(3);
-		lights[0].wLightPos = vec4(0, 2, 0.35, 1);	// ideal point -> directional light source
+		lights[0].wLightPos = vec4(0.75, 1.8, 0, 1);	// ideal point -> directional light source
 		lights[0].La = vec3(0.0001f, 0.0001f, 0.0001f);
 		lights[0].Le = vec3(1, 1, 1);
 
 		lights[1].wLightPos = vec4(8, 10, 10, 1);	// ideal point -> directional light source
 		lights[1].La = vec3(0.01f, 0.01f, 0.01f);
 		lights[1].Le = vec3(1, 1, 1);
-
-		vec3 obj4trans = objects[4]->translation;
 	}
 
 	void Render() {
@@ -823,15 +732,32 @@ public:
 		camera.Animate(0.025);
 		//for (Object* obj : objects) obj->Animate(tstart, tend);
 		objects[4]->Animate(tstart, tend);
-		float y = length(objects[4]->translation * 2);
-		float alpha = objects[4]->rotationAngle;
 
-		objects[4]->translation =  vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
+		objects[6]->translation = vec3(0, 0.5, 0);
+		objects[6]->scale = vec3(0.1, 0.1, 0.5);
+		objects[6]->rotationAxis = vec3(1, 0, 0);
+		objects[6]->rotationAngle = M_PI / 2;
+		objects[6]->Animate(tstart, -tend);
+
+		objects[8]->rotationAxis = vec3(0, 1, 0);
+		//objects[8]->rotationAngle = -M_PI;
+		//objects[8]->Animate(tstart, tend);
+
+
+		float y = length(objects[4]->translation * 2);
+		float y2 = length(objects[4]->translation * 2);
+		float y3 = length(objects[8]->translation);
+		float alpha = objects[4]->rotationAngle;
+		float alpha2 = objects[4]->rotationAngle;
+		float alpha3 = objects[8]->rotationAngle;
+
+
+		objects[4]->translation = vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
 		objects[5]->translation = vec3(0, y * sin(alpha), -y * cos(alpha)) - objects[4]->translation/5;
-		objects[6]->translation = objects[5]->translation + vec3(0,0.5,0);
-		objects[7]->translation = objects[5]->translation + vec3(0, 0.5, 0) + vec3(0, 0.5, 0);
-		objects[8]->translation = objects[5]->translation + vec3(0, 0.5, 0) + vec3(0, 0.5, 0) + vec3(0, 0, 0.7);
-		lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
+		objects[6]->translation = objects[5]->translation + vec3(0, 1, 0) - vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
+		objects[7]->translation = vec3(0, 1.8, 0);
+		//objects[8]->translation = vec3(0, 1.8, 0) + vec3(-sin(alpha3)/2,0,0);;
+		//lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
 	}
 };
 
