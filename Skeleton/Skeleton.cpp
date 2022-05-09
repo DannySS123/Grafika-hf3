@@ -31,15 +31,7 @@
 // Tudomasul veszem, hogy a forrasmegjeloles kotelmenek megsertese eseten a hazifeladatra adhato pontokat
 // negativ elojellel szamoljak el es ezzel parhuzamosan eljaras is indul velem szemben.
 //=============================================================================================
-//=============================================================================================
-// Computer Graphics Sample Program: 3D engine-let
-// Shader: Gouraud, Phong, NPR
-// Material: diffuse + Phong-Blinn
-// Texture: CPU-procedural
-// Geometry: sphere, tractricoid, torus, mobius, klein-bottle, boy, dini
-// Camera: perspective
-// Light: point or directional sources
-//=============================================================================================
+
 #include "framework.h"
 
 //---------------------------
@@ -136,21 +128,6 @@ struct Light {
 };
 
 //---------------------------
-class CheckerBoardTexture : public Texture {
-	//---------------------------
-public:
-	CheckerBoardTexture(const int width, const int height) : Texture() {
-		std::vector<vec4> image(width * height);
-		const vec4 yellow(1, 1, 0, 1), blue(0, 0, 1, 1);
-		for (int x = 0; x < width; x++) for (int y = 0; y < height; y++) {
-			image[y * width + x] = (x & 1) ^ (y & 1) ? yellow : blue;
-		}
-		create(width, height, image, GL_NEAREST);
-	}
-};
-
-
-//---------------------------
 class ColorTexture : public Texture {
 	//---------------------------
 public:
@@ -160,8 +137,6 @@ public:
 		create(1, 1, image, GL_NEAREST);
 	}
 };
-
-
 
 //---------------------------
 struct RenderState {
@@ -190,82 +165,6 @@ public:
 		setUniform(light.La, name + ".La");
 		setUniform(light.Le, name + ".Le");
 		setUniform(light.wLightPos, name + ".wLightPos");
-	}
-};
-
-//---------------------------
-class GouraudShader : public Shader {
-	//---------------------------
-	const char* vertexSource = R"(
-		#version 330
-		precision highp float;
-
-		struct Light {
-			vec3 La, Le;
-			vec4 wLightPos;
-		};
-		
-		struct Material {
-			vec3 kd, ks, ka;
-			float shininess;
-		};
-
-		uniform mat4  MVP, M, Minv;  // MVP, Model, Model-inverse
-		uniform Light[8] lights;     // light source direction 
-		uniform int   nLights;		 // number of light sources
-		uniform vec3  wEye;          // pos of eye
-		uniform Material  material;  // diffuse, specular, ambient ref
-
-		layout(location = 0) in vec3  vtxPos;            // pos in modeling space
-		layout(location = 1) in vec3  vtxNorm;      	 // normal in modeling space
-
-		out vec3 radiance;		    // reflected radiance
-
-		void main() {
-			gl_Position = vec4(vtxPos, 1) * MVP; // to NDC
-			// radiance computation
-			vec4 wPos = vec4(vtxPos, 1) * M;	
-			vec3 V = normalize(wEye * wPos.w - wPos.xyz);
-			vec3 N = normalize((Minv * vec4(vtxNorm, 0)).xyz);
-			if (dot(N, V) < 0) N = -N;	// prepare for one-sided surfaces like Mobius or Klein
-
-			radiance = vec3(0, 0, 0);
-			for(int i = 0; i < nLights; i++) {
-				vec3 L = normalize(lights[i].wLightPos.xyz * wPos.w - wPos.xyz * lights[i].wLightPos.w);
-				vec3 H = normalize(L + V);
-				float cost = max(dot(N,L), 0), cosd = max(dot(N,H), 0);
-				radiance += material.ka * lights[i].La + (material.kd * cost + material.ks * pow(cosd, material.shininess)) * lights[i].Le;
-			}
-		}
-	)";
-
-	// fragment shader in GLSL
-	const char* fragmentSource = R"(
-		#version 330
-		precision highp float;
-
-		in  vec3 radiance;      // interpolated radiance
-		out vec4 fragmentColor; // output goes to frame buffer
-
-		void main() {
-			fragmentColor = vec4(radiance, 1);
-		}
-	)";
-public:
-	GouraudShader() { create(vertexSource, fragmentSource, "fragmentColor"); }
-
-	void Bind(RenderState state) {
-		Use(); 		// make this program run
-		setUniform(state.MVP, "MVP");
-		setUniform(state.M, "M");
-		setUniform(state.Minv, "Minv");
-		setUniform(state.wEye, "wEye");
-		setUniformMaterial(*state.material, "material");
-
-		setUniform((int)state.lights.size(), "nLights");
-		for (unsigned int i = 0; i < state.lights.size(); i++) {
-			setUniformLight(state.lights[i], std::string("lights[") + std::to_string(i) + std::string("]"));
-		}
 	}
 };
 
@@ -371,67 +270,6 @@ public:
 		for (unsigned int i = 0; i < state.lights.size(); i++) {
 			setUniformLight(state.lights[i], std::string("lights[") + std::to_string(i) + std::string("]"));
 		}
-	}
-};
-
-//---------------------------
-class NPRShader : public Shader {
-	//---------------------------
-	const char* vertexSource = R"(
-		#version 330
-		precision highp float;
-
-		uniform mat4  MVP, M, Minv; // MVP, Model, Model-inverse
-		uniform	vec4  wLightPos;
-		uniform vec3  wEye;         // pos of eye
-
-		layout(location = 0) in vec3  vtxPos;            // pos in modeling space
-		layout(location = 1) in vec3  vtxNorm;      	 // normal in modeling space
-		layout(location = 2) in vec2  vtxUV;
-
-		out vec3 wNormal, wView, wLight;				// in world space
-		out vec2 texcoord;
-
-		void main() {
-		   gl_Position = vec4(vtxPos, 1) * MVP; // to NDC
-		   vec4 wPos = vec4(vtxPos, 1) * M;
-		   wLight = wLightPos.xyz * wPos.w - wPos.xyz * wLightPos.w;
-		   wView  = wEye * wPos.w - wPos.xyz;
-		   wNormal = (Minv * vec4(vtxNorm, 0)).xyz;
-		   texcoord = vtxUV;
-		}
-	)";
-
-	// fragment shader in GLSL
-	const char* fragmentSource = R"(
-		#version 330
-		precision highp float;
-
-		uniform sampler2D diffuseTexture;
-
-		in  vec3 wNormal, wView, wLight;	// interpolated
-		in  vec2 texcoord;
-		out vec4 fragmentColor;    			// output goes to frame buffer
-
-		void main() {
-		   vec3 N = normalize(wNormal), V = normalize(wView), L = normalize(wLight);
-		   if (dot(N, V) < 0) N = -N;	// prepare for one-sided surfaces like Mobius or Klein
-		   float y = (dot(N, L) > 0.5) ? 1 : 0.5;
-		   if (abs(dot(N, V)) < 0.2) fragmentColor = vec4(0, 0, 0, 1);
-		   else						 fragmentColor = vec4(y * texture(diffuseTexture, texcoord).rgb, 1);
-		}
-	)";
-public:
-	NPRShader() { create(vertexSource, fragmentSource, "fragmentColor"); }
-
-	void Bind(RenderState state) {
-		Use(); 		// make this program run
-		setUniform(state.MVP, "MVP");
-		setUniform(state.M, "M");
-		setUniform(state.Minv, "Minv");
-		setUniform(state.wEye, "wEye");
-		setUniform(*state.texture, std::string("diffuseTexture"));
-		setUniform(state.lights[0].wLightPos, "wLightPos");
 	}
 };
 
@@ -549,9 +387,9 @@ public:
 	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
 		U = U * 2.0f * (float)M_PI;
 		V = V * (float)M_PI;
-		X = Cos(U) * Sin(V); //* Cos(U) * Sin(V);
+		Z = Cos(U) * Sin(V);
 		Y = Sin(U) * Sin(V);
-		Z = Cos(V) * Cos(V);
+		X = Cos(V) * Cos(V) * -1;
 	}
 };
 
@@ -561,8 +399,11 @@ class Cylinder : public ParamSurface {
 public:
 	Cylinder() { create(); }
 	void eval(Dnum2& U, Dnum2& V, Dnum2& X, Dnum2& Y, Dnum2& Z) {
-		U = U * 2.0f * M_PI, V = V * 2 - 1.0f;
-		X = Cos(U); Y = Sin(U); Z = V;
+		U = U * 2.0f * M_PI;
+		V = V;
+		X = Cos(U);
+		Y = V;
+		Z = Sin(U);
 	}
 
 	void Animate(float tstart, float tend) {
@@ -605,8 +446,8 @@ public:
 		geometry->Draw();
 	}
 
-	virtual void Animate(float tstart, float tend) {
-		rotationAngle = sin(0.8f * tend)/2 + M_PI/2; 
+	virtual void Animate(float tstart, float tend, float n) {
+		rotationAngle = sin(0.8f * tend)/n; 
 	}
 };
 
@@ -620,15 +461,13 @@ public:
 	void Build() {
 		// Shaders
 		Shader* phongShader = new PhongShader();
-		Shader* gouraudShader = new GouraudShader();
-		Shader* nprShader = new NPRShader();
 
 		// Materials
 		Material* material0 = new Material;
 		material0->kd = vec3(0.6f, 0.4f, 0.2f);
-		material0->ks = vec3(4, 4, 4);
+		material0->ks = vec3(0.4, 0.4, 0.4);
 		material0->ka = vec3(0.1f, 0.1f, 0.1f);
-		material0->shininess = 100;
+		material0->shininess = 1000;
 
 		Material* material1 = new Material;
 		material1->kd = vec3(0.8f, 0.6f, 0.4f);
@@ -637,8 +476,6 @@ public:
 		material1->shininess = 30;
 
 		// Textures
-		Texture* texture4x8 = new CheckerBoardTexture(4, 8);
-		Texture* texture15x20 = new CheckerBoardTexture(15, 20);
 		Texture* blueTexture = new ColorTexture(vec4(0,0,1,1));
 		Texture* yellowTexture = new ColorTexture(vec4(1,1,0,1));
 
@@ -649,6 +486,9 @@ public:
 		Geometry* paraboloid = new Paraboloid();
 		Geometry* circle = new Circle();
 
+		vec3 sphereScale = vec3(0.12f, 0.12f, 0.12f);
+		vec3 cylinderScale = vec3(0.07, 1, 0.07);
+
 		// Create objects by setting up their vertex data on the GPU		
 		Object* planeObject = new Object(phongShader, material0, blueTexture, plane);
 		planeObject->translation = vec3(-25, -0.2, -25);
@@ -656,10 +496,8 @@ public:
 		objects.push_back(planeObject);
 
 		Object* cylinderObject1 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject1->translation = vec3(0, -0.1, 0);
-		cylinderObject1->scale = vec3(0.7, 0.7, 0.1);
-		cylinderObject1->rotationAxis = vec3(1, 0, 0);
-		cylinderObject1->rotationAngle = M_PI / 2;
+		cylinderObject1->translation = vec3(0, -0.2, 0);
+		cylinderObject1->scale = vec3(0.7, 0.2, 0.7);
 		objects.push_back(cylinderObject1);
 
 		Object* circleObject = new Object(phongShader, material0, yellowTexture, circle);
@@ -669,38 +507,31 @@ public:
 
 		Object* sphereObject1 = new Object(phongShader, material0, yellowTexture, sphere);
 		sphereObject1->translation = vec3(0, 0, 0);
-		sphereObject1->scale = vec3(0.2f, 0.2f, 0.2f);
+		sphereObject1->scale = sphereScale;
 		objects.push_back(sphereObject1);
 
 		Object* cylinderObject2 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject2->translation = vec3(0, 0.5, 0);
-		cylinderObject2->scale = vec3(0.1, 0.1, 0.5);
-		cylinderObject2->rotationAxis = vec3(1, 0, 0);
-		cylinderObject2->rotationAngle = M_PI / 2;
+		cylinderObject2->scale = cylinderScale;
 		objects.push_back(cylinderObject2);
 
 		Object* sphereObject2 = new Object(phongShader, material0, yellowTexture, sphere);
 		sphereObject2->translation = vec3(0, 1, 0);
-		sphereObject2->scale = vec3(0.2f, 0.2f, 0.2f);
+		sphereObject2->scale = sphereScale;
 		objects.push_back(sphereObject2);
 
 		Object* cylinderObject3 = new Object(phongShader, material0, yellowTexture, cylinder);
-		cylinderObject3->translation = vec3(0, 1.5, 0);
-		cylinderObject3->scale = vec3(0.1, 0.1, 0.5);
-		cylinderObject3->rotationAxis = vec3(1, 0, 0);
-		cylinderObject3->rotationAngle = M_PI / 2;
+		cylinderObject3->translation = vec3(0, 1, 0);
+		cylinderObject3->scale = cylinderScale;
 		objects.push_back(cylinderObject3);
 
 		Object* sphereObject3 = new Object(phongShader, material0, yellowTexture, sphere);
 		sphereObject3->translation = vec3(0, 2, 0);
-		sphereObject3->scale = vec3(0.2f, 0.2f, 0.2f);
+		sphereObject3->scale = sphereScale;
 		objects.push_back(sphereObject3);
 
 		Object* paraboloidObject = new Object(phongShader, material0, yellowTexture, paraboloid);
-		paraboloidObject->translation = vec3(0.69, 1.8, 0);
+		paraboloidObject->translation = vec3(0.62, 2, 0);
 		paraboloidObject->scale = vec3(0.5, 0.5, 0.5);
-		paraboloidObject->rotationAxis = vec3(0, 1, 0);
-		paraboloidObject->rotationAngle = -M_PI/2;
 		objects.push_back(paraboloidObject);
 
 		// Camera
@@ -710,11 +541,11 @@ public:
 
 		// Lights
 		lights.resize(3);
-		lights[0].wLightPos = vec4(0.75, 1.8, 0, 1);	// ideal point -> directional light source
-		lights[0].La = vec3(0.0001f, 0.0001f, 0.0001f);
-		lights[0].Le = vec3(1, 1, 1);
+		lights[0].wLightPos = vec4(0.75, 2, 0, 1);	// ideal point -> directional light source
+		lights[0].La = vec3(0.01f, 0.01f, 0.01f);
+		lights[0].Le = vec3(2, 2, 2);
 
-		lights[1].wLightPos = vec4(8, 10, 10, 1);	// ideal point -> directional light source
+		lights[1].wLightPos = vec4(4, 6, 6, 1);	// ideal point -> directional light source
 		lights[1].La = vec3(0.01f, 0.01f, 0.01f);
 		lights[1].Le = vec3(1, 1, 1);
 	}
@@ -730,34 +561,23 @@ public:
 
 	void Animate(float tstart, float tend) {
 		camera.Animate(0.025);
-		//for (Object* obj : objects) obj->Animate(tstart, tend);
-		objects[4]->Animate(tstart, tend);
 
-		objects[6]->translation = vec3(0, 0.5, 0);
-		objects[6]->scale = vec3(0.1, 0.1, 0.5);
-		objects[6]->rotationAxis = vec3(1, 0, 0);
-		objects[6]->rotationAngle = M_PI / 2;
-		objects[6]->Animate(tstart, -tend);
+		objects[4]->rotationAxis = vec3(1, 0, 1);
+		objects[4]->Animate(tstart, tend, 0.9);
+		objects[6]->rotationAxis = vec3(1, 0, -1);
+		objects[6]->Animate(tstart, tend*2, 2);
+		objects[8]->rotationAxis = vec3(0, 0, 1);
+		objects[8]->Animate(tstart, tend*8, 8);
 
-		objects[8]->rotationAxis = vec3(0, 1, 0);
-		//objects[8]->rotationAngle = -M_PI;
-		//objects[8]->Animate(tstart, tend);
+		float alpha4 = objects[4]->rotationAngle;
+		float alpha6 = objects[6]->rotationAngle;
+		float alpha8 = objects[8]->rotationAngle;
 
-
-		float y = length(objects[4]->translation * 2);
-		float y2 = length(objects[4]->translation * 2);
-		float y3 = length(objects[8]->translation);
-		float alpha = objects[4]->rotationAngle;
-		float alpha2 = objects[4]->rotationAngle;
-		float alpha3 = objects[8]->rotationAngle;
-
-
-		objects[4]->translation = vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
-		objects[5]->translation = vec3(0, y * sin(alpha), -y * cos(alpha)) - objects[4]->translation/5;
-		objects[6]->translation = objects[5]->translation + vec3(0, 1, 0) - vec3(0, y * sin(alpha) / 2, -y * cos(alpha) / 2);
-		objects[7]->translation = vec3(0, 1.8, 0);
-		//objects[8]->translation = vec3(0, 1.8, 0) + vec3(-sin(alpha3)/2,0,0);;
-		//lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
+		objects[5]->translation = vec3(-sin(alpha4)/sqrt(2), cos(alpha4), sin(alpha4) / sqrt(2));
+		objects[6]->translation = objects[5]->translation;
+		objects[7]->translation = objects[5]->translation + vec3(sin(alpha6) / sqrt(2), cos(alpha6), sin(alpha6) / sqrt(2));
+		objects[8]->translation = objects[7]->translation + 0.385 * normalize(objects[7]->translation - objects[8]->translation) + vec3(cos(alpha8), sin(alpha8), 0);
+		lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
 	}
 };
 
