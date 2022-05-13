@@ -141,6 +141,8 @@ public:
 //---------------------------
 struct RenderState {
 	//---------------------------
+	vec3 pVec;
+	int par;
 	mat4	           MVP, M, Minv, V, P;
 	Material* material;
 	std::vector<Light> lights;
@@ -222,6 +224,8 @@ class PhongShader : public Shader {
 			float shininess;
 		};
 
+		uniform vec3 pVec;
+		uniform int par;
 		uniform Material material;
 		uniform Light[8] lights;    // light sources 
 		uniform int   nLights;
@@ -248,8 +252,19 @@ class PhongShader : public Shader {
 				vec3 H = normalize(L + V);
 				float cost = max(dot(N,L), 0), cosd = max(dot(N,H), 0);
 				// kd and ka are modulated by the texture
-				radiance += ka * lights[i].La + 
+				if (i == 0) {
+					if (par == 1) {
+						radiance += ka * lights[i].La + 
+                           (kd * texColor * cost + material.ks * pow(cosd, material.shininess+3)) * lights[i].Le * 200;
+					} else if (dot(-pVec, L) > 0.65) {
+						float a = dot(H, L) / 1.7;
+						radiance += ka * lights[i].La + 
+                           (kd * texColor * cost + material.ks * pow(cosd, material.shininess)) * lights[i].Le * a * a ;
+					}
+				} else {
+					radiance += ka * lights[i].La + 
                            (kd * texColor * cost + material.ks * pow(cosd, material.shininess)) * lights[i].Le;
+				}
 			}
 			fragmentColor = vec4(radiance, 1);
 		}
@@ -259,12 +274,15 @@ public:
 
 	void Bind(RenderState state) {
 		Use(); 		// make this program run
+		setUniform(state.pVec, "pVec");
+		//setUniform((int)0, "par");
 		setUniform(state.MVP, "MVP");
 		setUniform(state.M, "M");
 		setUniform(state.Minv, "Minv");
 		setUniform(state.wEye, "wEye");
 		setUniform(*state.texture, std::string("diffuseTexture"));
 		setUniformMaterial(*state.material, "material");
+		setUniform(state.par, "par");
 
 		setUniform((int)state.lights.size(), "nLights");
 		for (unsigned int i = 0; i < state.lights.size(); i++) {
@@ -414,6 +432,7 @@ public:
 //---------------------------
 struct Object {
 	//---------------------------
+	int par;
 	Shader* shader;
 	Material* material;
 	Texture* texture;
@@ -421,12 +440,13 @@ struct Object {
 	vec3 scale, translation, rotationAxis;
 	float rotationAngle;
 public:
-	Object(Shader* _shader, Material* _material, Texture* _texture, Geometry* _geometry) :
+	Object(Shader* _shader, Material* _material, Texture* _texture, Geometry* _geometry, char _par) :
 		scale(vec3(1, 1, 1)), translation(vec3(0, 0, 0)), rotationAxis(0, 0, 1), rotationAngle(0) {
 		shader = _shader;
 		texture = _texture;
 		material = _material;
 		geometry = _geometry;
+		par = _par;
 	}
 
 	virtual void SetModelingTransform(mat4& M, mat4& Minv) {
@@ -442,6 +462,7 @@ public:
 		state.MVP = state.M * state.V * state.P;
 		state.material = material;
 		state.texture = texture;
+		state.par = par;
 		shader->Bind(state);
 		geometry->Draw();
 	}
@@ -465,9 +486,9 @@ public:
 		// Materials
 		Material* material0 = new Material;
 		material0->kd = vec3(0.6f, 0.4f, 0.2f);
-		material0->ks = vec3(0.4, 0.4, 0.4);
+		material0->ks = vec3(0.04, 0.04, 0.04);
 		material0->ka = vec3(0.1f, 0.1f, 0.1f);
-		material0->shininess = 1000;
+		material0->shininess = 10;
 
 		Material* material1 = new Material;
 		material1->kd = vec3(0.8f, 0.6f, 0.4f);
@@ -490,46 +511,46 @@ public:
 		vec3 cylinderScale = vec3(0.07, 1, 0.07);
 
 		// Create objects by setting up their vertex data on the GPU		
-		Object* planeObject = new Object(phongShader, material0, blueTexture, plane);
+		Object* planeObject = new Object(phongShader, material0, blueTexture, plane, 0);
 		planeObject->translation = vec3(-25, -0.2, -25);
 		planeObject->scale = vec3(50, 1, 50);
 		objects.push_back(planeObject);
 
-		Object* cylinderObject1 = new Object(phongShader, material0, yellowTexture, cylinder);
+		Object* cylinderObject1 = new Object(phongShader, material0, yellowTexture, cylinder, 0);
 		cylinderObject1->translation = vec3(0, -0.2, 0);
 		cylinderObject1->scale = vec3(0.7, 0.2, 0.7);
 		objects.push_back(cylinderObject1);
 
-		Object* circleObject = new Object(phongShader, material0, yellowTexture, circle);
+		Object* circleObject = new Object(phongShader, material0, yellowTexture, circle, 0);
 		circleObject->translation = vec3(0, 0, 0);
 		circleObject->scale = vec3(0.7, 1, 0.7);
 		objects.push_back(circleObject);
 
-		Object* sphereObject1 = new Object(phongShader, material0, yellowTexture, sphere);
+		Object* sphereObject1 = new Object(phongShader, material0, yellowTexture, sphere, 0);
 		sphereObject1->translation = vec3(0, 0, 0);
 		sphereObject1->scale = sphereScale;
 		objects.push_back(sphereObject1);
 
-		Object* cylinderObject2 = new Object(phongShader, material0, yellowTexture, cylinder);
+		Object* cylinderObject2 = new Object(phongShader, material0, yellowTexture, cylinder, 0);
 		cylinderObject2->scale = cylinderScale;
 		objects.push_back(cylinderObject2);
 
-		Object* sphereObject2 = new Object(phongShader, material0, yellowTexture, sphere);
+		Object* sphereObject2 = new Object(phongShader, material0, yellowTexture, sphere, 0);
 		sphereObject2->translation = vec3(0, 1, 0);
 		sphereObject2->scale = sphereScale;
 		objects.push_back(sphereObject2);
 
-		Object* cylinderObject3 = new Object(phongShader, material0, yellowTexture, cylinder);
+		Object* cylinderObject3 = new Object(phongShader, material0, yellowTexture, cylinder, 0);
 		cylinderObject3->translation = vec3(0, 1, 0);
 		cylinderObject3->scale = cylinderScale;
 		objects.push_back(cylinderObject3);
 
-		Object* sphereObject3 = new Object(phongShader, material0, yellowTexture, sphere);
+		Object* sphereObject3 = new Object(phongShader, material0, yellowTexture, sphere, 0);
 		sphereObject3->translation = vec3(0, 2, 0);
 		sphereObject3->scale = sphereScale;
 		objects.push_back(sphereObject3);
 
-		Object* paraboloidObject = new Object(phongShader, material0, yellowTexture, paraboloid);
+		Object* paraboloidObject = new Object(phongShader, material0, yellowTexture, paraboloid, 1);
 		paraboloidObject->translation = vec3(0.62, 2, 0);
 		paraboloidObject->scale = vec3(0.5, 0.5, 0.5);
 		objects.push_back(paraboloidObject);
@@ -542,16 +563,17 @@ public:
 		// Lights
 		lights.resize(3);
 		lights[0].wLightPos = vec4(0.75, 2, 0, 1);	// ideal point -> directional light source
-		lights[0].La = vec3(0.01f, 0.01f, 0.01f);
-		lights[0].Le = vec3(2, 2, 2);
+		lights[0].La = vec3(0, 0, 0);
+		lights[0].Le = vec3(20, 20, 20);
 
-		lights[1].wLightPos = vec4(4, 6, 6, 1);	// ideal point -> directional light source
+		lights[1].wLightPos = vec4(-1, 2, -1, 1);	// ideal point -> directional light source
 		lights[1].La = vec3(0.01f, 0.01f, 0.01f);
-		lights[1].Le = vec3(1, 1, 1);
+		lights[1].Le = vec3(2.5, 2.5, 2.5);
 	}
 
 	void Render() {
 		RenderState state;
+		state.pVec = normalize(objects[8]->translation - objects[7]->translation);
 		state.wEye = camera.wEye;
 		state.V = camera.V();
 		state.P = camera.P();
@@ -563,11 +585,11 @@ public:
 		camera.Animate(0.025);
 
 		objects[4]->rotationAxis = vec3(1, 0, 1);
-		objects[4]->Animate(tstart, tend, 0.9);
+		objects[4]->Animate(tstart, tend*1.347, 0.9);
 		objects[6]->rotationAxis = vec3(1, 0, -1);
-		objects[6]->Animate(tstart, tend*2, 2);
+		objects[6]->Animate(tstart, tend*2.25, 2);
 		objects[8]->rotationAxis = vec3(0, 0, 1);
-		objects[8]->Animate(tstart, tend*8, 8);
+		objects[8]->Animate(tstart, tend*5.067, 7.5);
 
 		float alpha4 = objects[4]->rotationAngle;
 		float alpha6 = objects[6]->rotationAngle;
@@ -576,8 +598,9 @@ public:
 		objects[5]->translation = vec3(-sin(alpha4)/sqrt(2), cos(alpha4), sin(alpha4) / sqrt(2));
 		objects[6]->translation = objects[5]->translation;
 		objects[7]->translation = objects[5]->translation + vec3(sin(alpha6) / sqrt(2), cos(alpha6), sin(alpha6) / sqrt(2));
-		objects[8]->translation = objects[7]->translation + 0.385 * normalize(objects[7]->translation - objects[8]->translation) + vec3(cos(alpha8), sin(alpha8), 0);
+		objects[8]->translation = objects[7]->translation + 0.381 * normalize(objects[7]->translation - objects[8]->translation) + vec3(cos(alpha8), sin(alpha8), 0);
 		lights[0].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
+		lights[2].wLightPos = vec4(objects[8]->translation.x, objects[8]->translation.y, objects[8]->translation.z, 1);
 	}
 };
 
